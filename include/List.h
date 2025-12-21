@@ -98,7 +98,7 @@ public:
     DoublyLinkedList &operator=(const DoublyLinkedList &) = delete;
 
     DoublyLinkedList(DoublyLinkedList &&other) noexcept
-        : alloc_(std::move(other.alloc_)), head_(other.head_), tail_(other.tail_), size_(other.size_)
+        : alloc_(other.alloc_), head_(other.head_), tail_(other.tail_), size_(other.size_)
     {
         other.head_ = nullptr;
         other.tail_ = nullptr;
@@ -110,7 +110,9 @@ public:
         if (this != &other)
         {
             clear();
-            alloc_ = std::move(other.alloc_);
+            
+        
+            
             head_ = other.head_;
             tail_ = other.tail_;
             size_ = other.size_;
@@ -152,32 +154,63 @@ public:
         size_++;
     }
 
+    iterator insert(iterator pos, const T& value)
+    {
+        if (pos == end())
+        {
+            push_back(value);
+            return iterator(tail_);
+        }
+        
+        Node *n = allocate_node(value);
+        Node *curr = pos.node;
+        
+        n->prev = curr->prev;
+        n->next = curr;
+        
+        if (curr->prev)
+            curr->prev->next = n;
+        else
+            head_ = n;
+            
+        curr->prev = n;
+        size_++;
+        
+        return iterator(n);
+    }
+
+    iterator erase(iterator pos)
+    {
+        if (pos == end()) return end();
+        
+        Node *curr = pos.node;
+        Node *next_node = curr->next;
+        
+        if (curr->prev)
+            curr->prev->next = curr->next;
+        else
+            head_ = curr->next;
+            
+        if (curr->next)
+            curr->next->prev = curr->prev;
+        else
+            tail_ = curr->prev;
+            
+        destroy_node(curr);
+        size_--;
+        
+        return iterator(next_node);
+    }
+
     void pop_front()
     {
-        if (!head_)
-            return;
-        Node *old = head_;
-        head_ = head_->next;
-        if (head_)
-            head_->prev = nullptr;
-        else
-            tail_ = nullptr;
-        destroy_node(old);
-        size_--;
+        erase(begin());
     }
 
     void pop_back()
     {
-        if (!tail_)
-            return;
-        Node *old = tail_;
-        tail_ = tail_->prev;
-        if (tail_)
-            tail_->next = nullptr;
-        else
-            head_ = nullptr;
-        destroy_node(old);
-        size_--;
+        if (!tail_) return;
+        erase(iterator(tail_));
     }
 
     void clear()
@@ -193,6 +226,12 @@ public:
         size_ = 0;
     }
 
+    T& front() { return head_->value; }
+    const T& front() const { return head_->value; }
+    
+    T& back() { return tail_->value; }
+    const T& back() const { return tail_->value; }
+
     iterator begin() { return iterator(head_); }
     iterator end() { return iterator(nullptr); }
 
@@ -204,6 +243,13 @@ public:
 
     bool empty() const { return size_ == 0; }
     std::size_t size() const { return size_; }
+
+    allocator_type get_allocator() const { return alloc_; }
+    
+    // Получение указателя на memory_resource
+    std::pmr::memory_resource* get_memory_resource() const {
+        return alloc_.resource();
+    }
 
 private:
     template <typename U>
@@ -234,4 +280,4 @@ private:
     std::size_t size_;
 };
 
-#endif
+#endif // LIST_H
